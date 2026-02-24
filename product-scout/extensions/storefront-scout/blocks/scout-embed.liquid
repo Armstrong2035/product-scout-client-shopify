@@ -1,0 +1,69 @@
+{% schema %}
+{
+  "name": "Product Scout",
+  "target": "body",
+  "stylesheet": "scout.css",
+  "javascript": "scout.js",
+  "settings": [
+    {
+      "type": "select",
+      "id": "display_mode",
+      "label": "Display Mode",
+      "options": [
+        { "value": "floating", "label": "Floating Button" },
+        { "value": "hijack", "label": "Native Search Hijack" }
+      ],
+      "default": "floating"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Accent Color",
+      "default": "#2c6ecb"
+    },
+    {
+      "type": "text",
+      "id": "button_label",
+      "label": "Button Label",
+      "default": "Scout"
+    }
+  ]
+}
+{% endschema %}
+
+<div id="scout-app-container" 
+     data-mode="{{ block.settings.display_mode }}" 
+     style="--scout-accent: {{ block.settings.accent_color }}">
+  
+  {% if block.settings.display_mode == 'floating' %}
+    <!-- Floating Trigger -->
+    <button id="scout-trigger" class="scout-trigger-btn" aria-label="Open AI Search">
+      <span class="scout-icon">🔍</span>
+      <span class="scout-label">{{ block.settings.button_label }}</span>
+    </button>
+  {% endif %}
+
+  <!-- Search Overlay -->
+  <div id="scout-overlay" class="scout-overlay hidden">
+    <div class="scout-modal">
+      <div class="scout-header">
+        <div class="scout-search-wrapper">
+          <input type="text" id="scout-input" placeholder="Ask Scout anything about our products..." autofocus>
+          <button id="scout-close" class="scout-close-btn">&times;</button>
+        </div>
+      </div>
+      <div id="scout-results" class="scout-results">
+        <div class="scout-empty">
+          <p>Try searching for features, colors, or uses.</p>
+          <div class="scout-suggestions">
+            <button class="scout-suggestion">"Something lightweight"</button>
+            <button class="scout-suggestion">"Gift ideas for runners"</button>
+          </div>
+        </div>
+      </div>
+      <div class="scout-footer">
+        Powered by AI Product Scout
+      </div>
+    </div>
+  </div>
+</div>
