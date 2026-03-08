@@ -1,5 +1,5 @@
 const query = "Gift ideas for runners";
-const shop_url = "your-store.myshopify.com";
+const shop_url = "product-scout-testing.myshopify.com";
 
 async function testSearch() {
   console.log(`Searching for: "${query}"...`);
@@ -10,7 +10,7 @@ async function testSearch() {
         "Content-Type": "application/json",
         "Accept": "text/event-stream"
       },
-      body: JSON.stringify({ query, shop_url, limit: 3 })
+      body: JSON.stringify({ query, shop_url, session_id: "test-session-123", limit: 3 })
     });
 
     console.log('--- STATUS ---');

@@ -75,20 +75,23 @@
     if (elements.drawerPrev) elements.drawerPrev.disabled = (idx <= 0);
     if (elements.drawerNext) elements.drawerNext.disabled = (idx >= totalItems - 1);
 
+    const drawerImg = (product.image_url || '').trim()
+      ? `<img src="${(product.image_url || '').startsWith('//') ? 'https:' + product.image_url : product.image_url}" alt="${(product.title || '').replace(/"/g, '')}" class="scout-drawer-main-img">`
+      : '<div class="scout-drawer-img-placeholder"><span aria-hidden="true">📦</span></div>';
     elements.drawerContent.innerHTML = `
       <div class="scout-drawer-hero">
         <div class="scout-drawer-img-container">
-           <img src="${product.image_url || ''}" alt="${product.title}" class="scout-drawer-main-img">
+           ${drawerImg}
         </div>
       </div>
       <div class="scout-drawer-info">
         <h2 class="scout-drawer-title">${product.title}</h2>
         <div class="scout-drawer-meta">
           <span class="scout-drawer-price">${product.price || ''}</span>
-          <span class="scout-drawer-match">MATCH: ${Math.round((product.score || 0) * 100)}%</span>
+          <span class="scout-drawer-match">${product.scoreLabel || product.scorePercent + '%' || ''}</span>
         </div>
         <div class="scout-drawer-pitch-label">AI Analysis</div>
-        <p class="scout-drawer-explanation">${product.explanation || 'Analyzing product details...'}</p>
+        <div class="scout-drawer-explanation">${product.explanation ? formatExplanation(product.explanation) : '<div class="scout-drawer-explanation-shimmer"></div>'}</div>
         <button class="scout-drawer-action" onclick="window.scout.quickAdd('${product.storefront_id.split('/').pop()}', this)">Add to Cart</button>
       </div>
     `;
@@ -112,6 +115,8 @@
           image_url: nextItem.getAttribute('data-image'),
           explanation: nextItem.getAttribute('data-explanation'),
           score: nextItem.getAttribute('data-score'),
+          scorePercent: nextItem.getAttribute('data-score-percent'),
+          scoreLabel: nextItem.getAttribute('data-score-label'),
           storefront_id: nextItem.getAttribute('data-id')
         });
         elements.drawerContent.style.opacity = '1';
@@ -181,6 +186,42 @@
     searchTimeout = setTimeout(() => performSearch(query), 400);
   });
 
+  async function fetchProductDetails(storefrontIds) {
+    if (storefrontIds.length === 0) return [];
+
+    // Single batched request: /products.json?ids=123,456,789 avoids limit=1 truncation
+    const numericIds = storefrontIds.map(gid => gid.split('/').pop());
+    const idsParam = numericIds.join(',');
+
+    try {
+      const res = await fetch(`/products.json?ids=${idsParam}&limit=250`);
+      const data = await res.json();
+      const rawProducts = data.products || [];
+
+      // Map back to original order by storefront_id
+      return storefrontIds.map(gid => {
+        const numericId = gid.split('/').pop();
+        const p = rawProducts.find(prod => String(prod.id) === String(numericId));
+        if (!p) return { storefront_id: gid, handle: '', title: 'Product', price: '', image_url: '', variant_id: '' };
+
+        const variant = p.variants?.[0];
+        const priceNum = variant ? parseFloat(variant.price) : 0;
+        const currencySymbol = (window.Shopify?.currency?.active === 'EUR') ? '€' : '$';
+        return {
+          storefront_id: gid,
+          handle: p.handle,
+          title: p.title,
+          price: `${currencySymbol}${priceNum.toFixed(2)}`,
+          image_url: p.images?.[0]?.src || '',
+          variant_id: variant?.id || ''
+        };
+      });
+    } catch (e) {
+      console.warn('Scout: Failed to fetch product details', e);
+      return storefrontIds.map(gid => ({ storefront_id: gid, handle: '', title: 'Product', price: '', image_url: '', variant_id: '' }));
+    }
+  }
+
   async function performSearch(query) {
     elements.results.innerHTML = `
       <div class="scout-status">
@@ -193,186 +234,288 @@
       <div class="scout-grid" id="scout-grid-main"></div>
     `;
     
-    const reasoningContainer = document.getElementById("scout-reasoning");
-    const reasoningText = reasoningContainer.querySelector(".scout-reasoning-text");
     const grid = document.getElementById("scout-grid-main");
+    const reasoningContainer = document.getElementById("scout-reasoning");
 
-      try {
-        console.log("Scout: Searching for:", query);
-        const response = await fetch(`${API_BASE}/search`, {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            "Accept": "text/event-stream"
-          },
-          body: JSON.stringify({ 
-            query, 
-            shop_url: shopUrl, 
-            limit: 6,
-            session_id: getOrCreateSessionId()
-          })
-        });
+    // 10-second timeout safeguard
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      controller.abort();
+      grid.innerHTML = `<div class="scout-empty" style="grid-column: 1 / -1;"><p>Search timed out. Please try again.</p></div>`;
+    }, 10000);
 
-        const contentType = response.headers.get("content-type");
-        console.log("Scout: Received status:", response.status, "Content-Type:", contentType);
+    try {
+      const response = await fetch(`${API_BASE}/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          query, 
+          shop_url: shopUrl, 
+          limit: 6,
+          session_id: getOrCreateSessionId()
+        }),
+        signal: controller.signal
+      });
 
-        if (response.status === 429) {
-          grid.innerHTML = '<div class="scout-empty"><p>Search limit reached. Please try again later.</p></div>';
-          return;
-        }
+      clearTimeout(timeout);
 
-        if (!response.ok) throw new Error(`Search failed (${response.status})`);
-
-      let isStreaming = response.headers.get("content-type")?.includes("text/event-stream");
-
-      if (!isStreaming) {
-        // Fallback for plain JSON responses - stream is NOT locked yet
-        const text = await response.text();
-        console.log("Scout: Handling as non-stream JSON", text);
-        try {
-          const payload = JSON.parse(text);
-          processPayload(payload, grid, reasoningContainer, reasoningText);
-        } catch (e) {
-          console.error("Scout: Failed to parse non-stream JSON", e);
-          throw new Error("Invalid response format");
-        }
+      if (response.status === 402) {
+        grid.innerHTML = '<div class="scout-empty" style="grid-column: 1 / -1;"><p>Search credits exhausted. Please contact support.</p></div>';
         return;
       }
+      if (response.status === 429) {
+        grid.innerHTML = '<div class="scout-empty" style="grid-column: 1 / -1;"><p>Search limit reached. Please try again later.</p></div>';
+        return;
+      }
+      if (!response.ok) throw new Error(`Search failed (${response.status})`);
 
-      // ONLY get reader if we are sure it's a stream
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
 
       while (true) {
         const { value, done } = await reader.read();
-        const chunk = decoder.decode(value || new Uint8Array(), { stream: !done });
-        buffer += chunk;
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
         
-        const lines = buffer.split(/\r?\n/);
-        buffer = lines.pop();
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // keep incomplete line
 
         for (const line of lines) {
-          const trimmedLine = line.trim();
-          if (!trimmedLine) continue;
-
-          console.log("Scout: Raw stream line:", trimmedLine);
-
-          if (trimmedLine.startsWith("data:")) {
-            try {
-              // Handle "data: json" or "data:json"
-              const rawData = trimmedLine.replace(/^data:\s*/, "");
-              const payload = JSON.parse(rawData);
-              processPayload(payload, grid, reasoningContainer, reasoningText);
-            } catch (e) {
-              console.warn("Scout: Failed to parse stream chunk", e, trimmedLine);
-            }
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const event = JSON.parse(line.slice(6));
+            await handleStreamEvent(event, grid, reasoningContainer);
+          } catch (e) {
+            console.warn("Scout: Failed to parse stream event", e, line);
           }
-        }
-        if (done) {
-          if (!reasoningContainer.classList.contains('scout-reasoning-ready')) {
-            reasoningContainer.classList.add('hidden');
-          }
-          break;
         }
       }
     } catch (err) {
+      if (err.name === 'AbortError') return; // timeout already handled
+      clearTimeout(timeout);
       console.error("Scout: Search error:", err);
-      grid.innerHTML = `<div class="scout-empty"><p>Something went wrong: ${err.message}</p></div>`;
+      grid.innerHTML = `<div class="scout-empty" style="grid-column: 1 / -1;"><p>Something went wrong: ${err.message}</p></div>`;
+    } finally {
+      clearTimeout(timeout);
+      // Hide reasoning pulsing once done
+      if (reasoningContainer && !reasoningContainer.classList.contains('scout-reasoning-ready')) {
+        reasoningContainer.classList.add('hidden');
+      }
     }
   }
 
-  function processPayload(payload, grid, reasoningContainer, reasoningText) {
-    if (!payload) return;
-    console.log("Scout: Processing payload:", payload);
-    
-    // Check for results in various formats (wrapped, data, or top-level array)
-    const results = payload.results || payload.data || (Array.isArray(payload) ? payload : null);
-    const searchId = payload.search_id;
+  async function handleStreamEvent(event, grid, reasoningContainer) {
+    if (!event || !event.type) return;
 
-    if (results && Array.isArray(results)) {
-      if (searchId) setCookie(LAST_SEARCH_COOKIE, searchId);
-      renderSkeletons(results, grid, searchId);
-      reasoningContainer.classList.remove("hidden");
+    if (event.type === 'results') {
+      if (event.search_id) setCookie(LAST_SEARCH_COOKIE, event.search_id);
       
-      // Hide the initial "Searching..." label now that we have matches
+      const { results } = event;
+      if (!results || results.length === 0) {
+        grid.innerHTML = '<div class="scout-empty" style="grid-column: 1 / -1;"><p>No products found for this query.</p></div>';
+        return;
+      }
+
+      // Avoid overwriting with fewer results if we already rendered more (server may send multiple events)
+      const currentCount = grid.querySelectorAll('.scout-item').length;
+      if (currentCount > 0 && results.length < currentCount) return;
+
+      // Hide "Scouting..." label
       const searchingLabel = elements.results.querySelector(".scout-searching");
       if (searchingLabel) searchingLabel.classList.add("hidden");
-    } 
-    
-    // Check for individual explanations
-    if (payload.type === "explanation" || (payload.explanation && payload.index !== undefined)) {
-      if (payload.index !== undefined && payload.explanation) {
-        updateProductExplanation(payload.index, payload.explanation);
-      }
-    } 
-    
-    // Check for reasoning
-    if (payload.event === "reasoning" || payload.type === "reasoning" || payload.text || payload.content) {
-      const text = payload.text || payload.content || payload.reasoning;
-      if (text) {
-        reasoningText.innerText = text;
-        reasoningContainer.classList.add("scout-reasoning-ready");
-        reasoningContainer.classList.remove("hidden");
-      }
-    }
-  }
 
-  function renderSkeletons(results, container, searchId) {
-    if (!results || results.length === 0) {
-      container.innerHTML = '<div class="scout-empty" style="grid-column: 1 / -1;"><p>No products found for this query.</p></div>';
-      return;
-    }
-    container.innerHTML = results.map((p, index) => {
-      const explanation = p.explanation || p.description || "AI is analyzing this product...";
-      return `
-      <div class="scout-item" 
-           data-handle="${p.handle}" 
-           data-id="${p.storefront_id}" 
-           data-search-id="${searchId}" 
-           data-position="${index + 1}" 
-           data-index="${index}"
-           data-title="${p.title || p.handle.split('-').join(' ')}"
-           data-price="${p.price || ''}"
-           data-image="${p.image_url || ''}"
-           data-explanation="${explanation.replace(/"/g, '&quot;')}"
-           data-score="${p.score || 0}">
-        <a href="/products/${p.handle}" class="scout-link" onclick="window.scout.trackClick(event)">
-          <div class="scout-img-wrapper scout-skeleton">
-             ${p.image_url ? `<img src="${p.image_url}" alt="${p.handle}" onload="this.parentElement.classList.remove('scout-skeleton')">` : ''}
-          </div>
+      // Relative scaling: top result = 100%, others proportional to max score
+      const maxScore = Math.max(...results.map(r => r.score || 0), 1e-9);
+      const toPercent = (s) => Math.round(((s || 0) / maxScore) * 100);
+      const toLabel = (s) => {
+        const pct = toPercent(s);
+        if (pct >= 90) return 'Perfect Match';
+        if (pct >= 75) return 'Great Match';
+        if (pct >= 55) return 'Good Match';
+        if (pct >= 35) return 'Possible Match';
+        return 'Loose Match';
+      };
+
+      // Render skeletons immediately while we fetch product details
+      grid.innerHTML = results.map((p, index) => `
+        <div class="scout-item scout-loading"
+             data-storefront-id="${p.storefront_id}"
+             data-search-id="${event.search_id || ''}"
+             data-position="${index + 1}"
+             data-index="${index}"
+             data-score="${p.score || 0}"
+             data-score-percent="${toPercent(p.score)}"
+             data-score-label="${toLabel(p.score)}"
+             data-title=""
+             data-price=""
+             data-image=""
+             data-explanation=""
+             data-id="${p.storefront_id}">
+          <div class="scout-img-wrapper scout-skeleton"></div>
           <div class="scout-info">
-            <div class="scout-item-title">${p.title || p.handle.split('-').join(' ')}</div>
-            <div class="scout-item-price">${p.price || ''}</div>
+            <div class="scout-item-title scout-skeleton" style="height:14px; border-radius:4px; width:80%;">&nbsp;</div>
+            <div class="scout-item-price scout-skeleton" style="height:12px; border-radius:4px; width:40%; margin-top:4px;">&nbsp;</div>
+            <div class="scout-why-recommend">
+              <span class="scout-explanation-label">Why we recommend this</span>
+              <div class="scout-item-explanation-preview scout-explanation-shimmer"></div>
+              <button type="button" class="scout-read-more" title="View full AI analysis">Read more</button>
+            </div>
           </div>
-        </a>
-        <div class="scout-actions">
-           <div class="scout-meta-row">
-             <div class="scout-item-score">MATCH: ${Math.round((p.score || 0) * 100)}%</div>
-             <button class="scout-detail-trigger" title="View AI Analysis">
-               <span class="scout-info-icon">ⓘ</span>
-             </button>
-           </div>
-           <button class="scout-quick-add-compact" onclick="window.scout.quickAdd('${p.storefront_id.split('/').pop()}', this)" title="Quick Add to Cart">+</button>
+          <div class="scout-actions">
+            <div class="scout-meta-row">
+              <div class="scout-item-score">${toLabel(p.score)}</div>
+              <button class="scout-detail-trigger" title="View AI Analysis">
+                <span class="scout-info-icon">ⓘ</span>
+              </button>
+            </div>
+            <button class="scout-quick-add-compact" title="Quick Add to Cart">+</button>
+          </div>
         </div>
-      </div>
-    `;}).join("");
+      `).join('');
+
+      // Hydrate cards with product details in the background
+      const storefrontIds = results.map(p => p.storefront_id);
+      const products = await fetchProductDetails(storefrontIds);
+
+      // Skip if a new search replaced the grid (user typed again, etc.)
+      if (!document.body.contains(grid)) return;
+
+      // Match by storefront_id to ensure correct card gets correct product (order-preserving)
+      products.forEach((product, index) => {
+        const card = grid.querySelector(`.scout-item[data-storefront-id="${product.storefront_id}"]`);
+        if (!card) return;
+
+        card.setAttribute('data-title', product.title || '');
+        card.setAttribute('data-price', product.price || '');
+        card.setAttribute('data-image', product.image_url || '');
+
+        // Update the visual elements - image or placeholder
+        const imgWrapper = card.querySelector('.scout-img-wrapper');
+        if (imgWrapper) {
+          imgWrapper.classList.remove('scout-skeleton');
+          const imgUrl = (product.image_url || '').trim();
+          if (imgUrl) {
+            const src = imgUrl.startsWith('//') ? 'https:' + imgUrl : imgUrl;
+            const img = document.createElement('img');
+            img.src = src;
+            img.alt = (product.title || '').replace(/"/g, '');
+            img.className = 'scout-img';
+            img.onerror = () => {
+              imgWrapper.classList.add('scout-img-placeholder');
+              imgWrapper.innerHTML = '<span class="scout-img-mock" aria-hidden="true">📦</span>';
+            };
+            img.onload = () => imgWrapper.classList.remove('scout-skeleton');
+            imgWrapper.innerHTML = '';
+            imgWrapper.appendChild(img);
+          } else {
+            imgWrapper.classList.add('scout-img-placeholder');
+            imgWrapper.innerHTML = '<span class="scout-img-mock" aria-hidden="true">📦</span>';
+            imgWrapper.classList.remove('scout-skeleton');
+          }
+        }
+
+        const titleEl = card.querySelector('.scout-item-title');
+        if (titleEl) { 
+          titleEl.classList.remove('scout-skeleton');
+          titleEl.style.height = '';
+          titleEl.style.width = '';
+          titleEl.innerText = product.title || '';
+        }
+
+        const priceEl = card.querySelector('.scout-item-price');
+        if (priceEl) { 
+          priceEl.classList.remove('scout-skeleton');
+          priceEl.style.height = '';
+          priceEl.style.width = '';
+          priceEl.innerText = product.price || '';
+        }
+
+        // Set the onclick for the quick-add using real variant id
+        const quickAdd = card.querySelector('.scout-quick-add-compact');
+        if (quickAdd && product.variant_id) {
+          quickAdd.setAttribute('onclick', `window.scout.quickAdd('${product.variant_id}', this)`);
+        }
+        
+        // Update the store link for the product anchor
+        const link = card.querySelector('a.scout-link');
+        if (link && product.handle) {
+          link.href = `/products/${product.handle}`;
+        }
+      });
+
+    } else if (event.type === 'explanation') {
+      if (event.index !== undefined) {
+        updateProductExplanation(event.index, event.explanation ?? '');
+      }
+
+    } else if (event.type === 'empty') {
+      grid.innerHTML = '<div class="scout-empty" style="grid-column: 1 / -1;"><p>No products found for this query.</p></div>';
+    }
   }
 
   function updateProductExplanation(index, explanation) {
-    const item = document.querySelector(`.scout-item[data-index="${index}"]`);
-    if (item) {
-      item.setAttribute('data-explanation', explanation);
-      
-      // Update drawer if it's currently showing this product
-      if (elements.drawer && !elements.drawer.classList.contains('hidden')) {
-        const currentIdx = elements.drawer.getAttribute('data-current-index');
-        if (currentIdx === String(index)) {
-          const drawerExplanation = elements.drawer.querySelector('.scout-drawer-explanation');
-          if (drawerExplanation) drawerExplanation.innerText = explanation;
+    const grid = document.getElementById("scout-grid-main");
+    const item = grid ? grid.querySelector(`.scout-item[data-index="${index}"]`) : null;
+    if (!item) return;
+
+    const text = (explanation && String(explanation).trim()) ? explanation : '';
+    item.setAttribute('data-explanation', text);
+
+    // Add visual readiness states when we have content
+    if (text) {
+      item.classList.add('has-explanation');
+      item.classList.add('shimmer-flash');
+    
+    // Remove the flash class after animation completes (0.8s) so it can re-trigger if needed
+      setTimeout(() => {
+        item.classList.remove('shimmer-flash');
+      }, 800);
+
+      // Update card preview: remove shimmer, show content + Read more
+      const previewEl = item.querySelector('.scout-item-explanation-preview');
+      if (previewEl) {
+        const hook = text.split('\n')[0] || '';
+        previewEl.textContent = hook;
+        previewEl.classList.remove('scout-explanation-shimmer');
+        previewEl.classList.add('ready');
+      }
+      const readMore = item.querySelector('.scout-read-more');
+      if (readMore) readMore.classList.add('visible');
+    }
+
+    // Update drawer if it's currently showing this product
+    if (elements.drawer && !elements.drawer.classList.contains('hidden')) {
+      const currentIdx = elements.drawer.getAttribute('data-current-index');
+      if (currentIdx === String(index)) {
+        const drawerExplanation = elements.drawer.querySelector('.scout-drawer-explanation');
+        if (drawerExplanation) {
+          drawerExplanation.innerHTML = text ? formatExplanation(text) : '<div class="scout-drawer-explanation-shimmer"></div>';
         }
       }
     }
+  }
+
+  function formatExplanation(text) {
+    if (!text) return '';
+    // Convert plain-text bullet format to HTML
+    // Text format: "Hook sentence\n• [Feature]: [Benefit]\n• ...\nCloser sentence"
+    return text
+      .split('\n')
+      .map(line => {
+        if (line.startsWith('•')) {
+          const parts = line.slice(1).trim().split(':');
+          if (parts.length >= 2) {
+            return `<li><strong>${parts[0].trim()}</strong>: ${parts.slice(1).join(':').trim()}</li>`;
+          }
+          return `<li>${line.slice(1).trim()}</li>`;
+        }
+        return line ? `<p>${line}</p>` : '';
+      })
+      .join('')
+      .replace(/<\/li><li>/g, '</li><li>') // Clean up adjacent bullets
+      .replace(/<li>/, '<ul class="scout-explainer-bullets"><li>')
+      .replace(/(<\/li>)(?!<li>)/, '$1</ul>');
   }
 
   // Tracking Logic
@@ -538,24 +681,29 @@
     });
   }
 
+  function openDrawerForItem(item) {
+    if (!item) return;
+    openDetailDrawer({
+      index: item.getAttribute('data-index'),
+      title: item.getAttribute('data-title'),
+      price: item.getAttribute('data-price'),
+      image_url: item.getAttribute('data-image'),
+      explanation: item.getAttribute('data-explanation'),
+      score: item.getAttribute('data-score'),
+      scorePercent: item.getAttribute('data-score-percent'),
+      scoreLabel: item.getAttribute('data-score-label'),
+      storefront_id: item.getAttribute('data-id')
+    });
+  }
+
   window.onclick = (event) => {
     if (event.target == elements.overlay) closeScout();
     
-    // Detail Drawer trigger
-    const detailTrigger = event.target.closest('.scout-detail-trigger');
+    // Detail Drawer trigger (info icon or Read more)
+    const detailTrigger = event.target.closest('.scout-detail-trigger, .scout-read-more');
     if (detailTrigger) {
       const item = detailTrigger.closest('.scout-item');
-      if (item) {
-        openDetailDrawer({
-          index: item.getAttribute('data-index'),
-          title: item.getAttribute('data-title'),
-          price: item.getAttribute('data-price'),
-          image_url: item.getAttribute('data-image'),
-          explanation: item.getAttribute('data-explanation'),
-          score: item.getAttribute('data-score'),
-          storefront_id: item.getAttribute('data-id')
-        });
-      }
+      openDrawerForItem(item);
       event.stopPropagation();
     }
   };
