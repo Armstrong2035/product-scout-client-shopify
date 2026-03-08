@@ -16,12 +16,6 @@
       "default": "floating"
     },
     {
-      "type": "color",
-      "id": "accent_color",
-      "label": "Accent Color",
-      "default": "#2c6ecb"
-    },
-    {
       "type": "text",
       "id": "button_label",
       "label": "Button Label",
@@ -32,8 +26,7 @@
 {% endschema %}
 
 <div id="scout-app-container" 
-     data-mode="{{ block.settings.display_mode }}" 
-     style="--scout-accent: {{ block.settings.accent_color }}">
+     data-mode="{{ block.settings.display_mode }}">
   
   {% if block.settings.display_mode == 'floating' %}
     <!-- Floating Trigger -->
@@ -59,6 +52,20 @@
             <button class="scout-suggestion">"Something lightweight"</button>
             <button class="scout-suggestion">"Gift ideas for runners"</button>
           </div>
+        </div>
+      </div>
+      
+      <!-- Product Detail Drawer -->
+      <div id="scout-detail-drawer" class="scout-detail-drawer hidden">
+        <div class="scout-drawer-header">
+           <button id="scout-drawer-close" class="scout-drawer-close-btn">&larr; Results</button>
+           <div class="scout-drawer-nav">
+             <button id="scout-prev-product" class="scout-nav-btn" title="Previous Product">&uarr;</button>
+             <button id="scout-next-product" class="scout-nav-btn" title="Next Product">&darr;</button>
+           </div>
+        </div>
+        <div id="scout-drawer-content" class="scout-drawer-content">
+          <!-- Populated via JS -->
         </div>
       </div>
       <div class="scout-footer">

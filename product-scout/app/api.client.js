@@ -5,12 +5,13 @@ const API_BASE = "https://product-scout.onrender.com";
  * @param {string} query - The search query.
  * @param {string} shopUrl - The Shopify store domain.
  * @param {number} limit - Max results to return.
+ * @param {string} [sessionId] - Optional session ID for tracking.
  */
-export async function searchProducts(query, shopUrl, limit = 5) {
+export async function searchProducts(query, shopUrl, limit = 5, sessionId = null) {
   const response = await fetch(`${API_BASE}/search`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, shop_url: shopUrl, limit }),
+    body: JSON.stringify({ query, shop_url: shopUrl, limit, session_id: sessionId }),
   });
 
   if (response.status === 402) throw new Error("OUT_OF_CREDITS");
