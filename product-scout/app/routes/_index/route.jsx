@@ -199,6 +199,37 @@ export default function Index() {
           border: 1px solid rgba(106, 53, 255, 0.2);
         }
 
+        /* Pricing Section */
+        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; }
+        .pricing-card {
+           background: var(--surface);
+           border: 1px solid rgba(255,255,255,0.1);
+           border-radius: 24px;
+           padding: 32px;
+           display: flex;
+           flex-direction: column;
+           transition: all 0.3s;
+           position: relative;
+        }
+        .pricing-card:hover { border-color: var(--violet); transform: translateY(-8px); }
+        .pricing-card.featured {
+          border-color: var(--violet);
+          background: linear-gradient(180deg, rgba(106,53,255,0.1) 0%, var(--surface) 100%);
+        }
+        .price-badge {
+          position: absolute; top: 16px; right: 24px;
+          background: var(--violet-tint); color: var(--violet);
+          padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700;
+        }
+        .pricing-card h4 { font-size: 20px; margin-bottom: 8px; color: var(--gray); text-transform: uppercase; letter-spacing: 1px; }
+        .pricing-card .price { font-size: 40px; font-weight: 800; margin-bottom: 24px; font-family: 'Syne', sans-serif; }
+        .pricing-card .price span { font-size: 16px; color: var(--gray); font-weight: 400; }
+        .pricing-card ul { list-style: none; padding: 0; margin: 0 0 32px 0; display: flex; flex-direction: column; gap: 12px; }
+        .pricing-card li { display: flex; align-items: center; gap: 12px; color: var(--gray); font-size: 15px; }
+        .pricing-card li::before {
+          content: '✓'; color: var(--violet); font-weight: 900;
+        }
+
         /* Footer CTA */
         .footer-cta { text-align: center; padding: 100px 0; position: relative; }
         .footer-cta::before {
@@ -213,16 +244,14 @@ export default function Index() {
         
         {/* Navigation */}
         <nav>
-          <div className="logo">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="10" cy="10" r="7" stroke="var(--violet)" strokeWidth="3"/>
-              <path d="M21 21L15 15" stroke="var(--violet)" strokeWidth="3" strokeLinecap="round"/>
-              <circle cx="10" cy="10" r="2" fill="var(--violet)"/>
-              <circle cx="10" cy="10" r="4" stroke="var(--violet)" strokeWidth="1" strokeDasharray="2 2"/>
+          <div className="logo" style={{ color: 'var(--violet)' }}>
+            <svg width="38" height="38" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M42 88.5C24.6 85.3 12 70.1 12 52C12 28.8 30.8 10 54 10C77.2 10 96 28.8 96 52C96 70.1 83.4 85.3 66 88.5" stroke="currentColor" strokeWidth="15" fill="none" />
+              <circle cx="54" cy="52" r="10" fill="currentColor" />
             </svg>
-            Scout
+            <span style={{ color: '#fff', marginLeft: '-4px' }}>SCOUT</span>
           </div>
-          <a href="#install" className="btn-outline">Install Free</a>
+          <a href="#install" className="btn-outline">Join Beta</a>
         </nav>
 
         {/* Hero Section */}
@@ -233,7 +262,7 @@ export default function Index() {
             
             <div id="install" className="auth-card">
               <div className="auth-card-content">
-                <h3>Get Started</h3>
+                <h3>Get Beta Access</h3>
                 <p>Install free. Test it on your catalog. No credit card. No deadline. Activate when you're ready.</p>
               </div>
               
@@ -246,7 +275,7 @@ export default function Index() {
                     </div>
                   </div>
                   <button className="btn-primary" type="submit">
-                    Install on Shopify
+                    Join Beta Access
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
                   </button>
                 </Form>
@@ -350,12 +379,72 @@ export default function Index() {
           </div>
         </section>
 
+        {/* Pricing Section */}
+        <section className="section" id="pricing">
+          <div className="section-header">
+            <h2>Pricing</h2>
+            <p>Simple, transparent pricing to help you grow. Free to join during Beta.</p>
+          </div>
+          
+          <div className="pricing-grid">
+            <div className="pricing-card">
+              <div className="price-badge">FREE FOR NOW</div>
+              <h4>Starter</h4>
+              <div className="price">$29<span>/mo</span></div>
+              <ul>
+                <li>Semantic Search Engine</li>
+                <li>Up to 500 products indexed</li>
+                <li>1,000 AI searches/mo</li>
+                <li>Basic Analytics Feed</li>
+              </ul>
+              <a href="#install" className="btn-outline">Join Beta</a>
+            </div>
+            
+            <div className="pricing-card featured">
+              <div className="price-badge">POPULAR</div>
+              <h4>Growth</h4>
+              <div className="price">$49<span>/mo</span></div>
+              <ul>
+                <li>Everything in Starter</li>
+                <li>Up to 2,500 products indexed</li>
+                <li>5,000 AI searches/mo</li>
+                <li>Conversion Attribution</li>
+              </ul>
+              <a href="#install" className="btn-primary" style={{width: 'auto'}}>Get Beta Access</a>
+            </div>
+            
+            <div className="pricing-card">
+              <h4>Pro</h4>
+              <div className="price">$99<span>/mo</span></div>
+              <ul>
+                <li>Everything in Growth</li>
+                <li>Up to 10,000 products indexed</li>
+                <li>15,000 AI searches/mo</li>
+                <li>Custom Branding</li>
+              </ul>
+              <a href="#install" className="btn-outline">Join Beta</a>
+            </div>
+
+            <div className="pricing-card">
+              <h4>Scale</h4>
+              <div className="price">$199<span>/mo</span></div>
+              <ul>
+                <li>Everything in Pro</li>
+                <li>Unlimited indexing</li>
+                <li>50,000 AI searches/mo</li>
+                <li>Priority Support</li>
+              </ul>
+              <a href="#install" className="btn-outline">Join Beta</a>
+            </div>
+          </div>
+        </section>
+
         {/* Footer CTA */}
         <section className="footer-cta" style={{marginBottom: '0'}}>
           <h2 style={{fontSize: 'clamp(36px, 5vw, 56px)', marginBottom: '16px', letterSpacing: '-0.02em'}}>Stop losing sales to bad search.</h2>
-          <p style={{fontSize: '22px', color: 'var(--gray)', marginBottom: '48px'}}>Your catalog finally speaks your customer's language.</p>
+          <p style={{fontSize: '22px', color: 'var(--gray)', marginBottom: '48px'}}>Get Beta Access and transform your store today.</p>
           <a href="#install" className="btn-primary" style={{padding: '20px 40px', fontSize: '18px', borderRadius: '16px'}}>
-            Install Free
+            Get Beta Access
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
           </a>
         </section>

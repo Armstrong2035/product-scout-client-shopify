@@ -2,12 +2,11 @@
 
 client_id = "7868c41fc9fa9a6d102a3b124aac8f41"
 name = "product-scout"
-application_url = "https://product-scout.onrender.com"
+application_url = "https://product-scout-client-shopify.vercel.app"
 embedded = true
 
 [build]
 automatically_update_urls_on_dev = true
-include_config_on_deploy = true
 
 [webhooks]
 api_version = "2026-01"
@@ -27,7 +26,11 @@ optional_scopes = [ ]
 use_legacy_install_flow = false
 
 [auth]
-redirect_urls = [ ]
+redirect_urls = [
+  "https://product-scout-client-shopify.vercel.app/auth/callback",
+  "https://product-scout-client-shopify.vercel.app/auth/shopify/callback",
+  "https://product-scout-client-shopify.vercel.app/api/auth/callback"
+]
 
 [product.metafields.app.demo_info]
 type = "single_line_text_field"

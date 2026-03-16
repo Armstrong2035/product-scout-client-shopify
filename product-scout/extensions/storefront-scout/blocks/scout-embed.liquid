@@ -33,7 +33,12 @@
   {% if block.settings.display_mode == 'floating' %}
     <!-- Floating Trigger -->
     <button id="scout-trigger" class="scout-trigger-btn" aria-label="Open AI Search">
-      <span class="scout-icon">🔍</span>
+      <span class="scout-icon">
+        <svg width="24" height="24" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M42 88.5C24.6 85.3 12 70.1 12 52C12 28.8 30.8 10 54 10C77.2 10 96 28.8 96 52C96 70.1 83.4 85.3 66 88.5" stroke="currentColor" stroke-width="15" fill="none" />
+          <circle cx="54" cy="52" r="10" fill="currentColor" />
+        </svg>
+      </span>
       <span class="scout-label">{{ block.settings.button_label }}</span>
     </button>
   {% endif %}

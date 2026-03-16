@@ -1,12 +1,12 @@
 :root {
-  --scout-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.2);
-  --scout-blur: blur(24px);
-  --scout-glass-bg: rgba(255, 255, 255, 0.25);
-  --scout-glass-border: 1px solid rgba(255, 255, 255, 0.4);
-  --scout-glass-active: rgba(255, 255, 255, 0.45);
-  --scout-text: #ffffff;
-  --scout-secondary-text: rgba(255, 255, 255, 0.8);
-  --scout-accent-fallback: #ffffff; /* Neutral fallback for legacy bits */
+  --scout-shadow: 0 16px 48px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(106, 53, 255, 0.1);
+  --scout-blur: blur(20px);
+  --scout-glass-bg: rgba(255, 255, 255, 0.85); /* Much more opaque for light mode compatibility */
+  --scout-glass-border: 1px solid rgba(106, 53, 255, 0.2); /* Brand-tinted border */
+  --scout-glass-active: rgba(255, 255, 255, 0.95);
+  --scout-text: #1A1A1A; /* Dark text for high contrast on glass */
+  --scout-secondary-text: rgba(26, 26, 26, 0.7);
+  --scout-accent: #6A35FF; /* Scout Violet */
 }
 
 #scout-app-container {
@@ -43,10 +43,15 @@
   z-index: 2147483647;
 }
 
+.scout-icon svg {
+  color: var(--scout-accent); /* Make the icon pop with the brand color */
+}
+
 .scout-trigger-btn:hover {
-  transform: translateY(-6px) scale(1.04);
-  background: var(--scout-glass-active);
-  border-color: rgba(255, 255, 255, 0.6);
+  transform: translateY(-6px);
+  background: #fff;
+  border-color: var(--scout-accent);
+  box-shadow: 0 20px 60px rgba(106, 53, 255, 0.2);
 }
 
 .scout-icon { 
