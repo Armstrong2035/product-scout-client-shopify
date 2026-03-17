@@ -2,7 +2,7 @@
 
 client_id = "7868c41fc9fa9a6d102a3b124aac8f41"
 name = "product-scout"
-application_url = "https://product-scout-client-shopify.vercel.app"
+application_url = "https://www.productscout.shop"
 embedded = true
 
 [build]
@@ -27,9 +27,9 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "https://product-scout-client-shopify.vercel.app/auth/callback",
-  "https://product-scout-client-shopify.vercel.app/auth/shopify/callback",
-  "https://product-scout-client-shopify.vercel.app/api/auth/callback"
+  "https://www.productscout.shop/auth/callback",
+  "https://www.productscout.shop/auth/shopify/callback",
+  "https://www.productscout.shop/api/auth/callback"
 ]
 
 [product.metafields.app.demo_info]
