@@ -8,10 +8,9 @@
     items: [],
     totalCount: 0,
     totalPrice: 0,
-    currency: "USD" // Default, will try to detect from Shopify
+    currency: "USD"
   };
 
-  // Cookie Helpers
   const setCookie = (name, value, hours = 24) => {
     const date = new Date();
     date.setTime(date.getTime() + (hours * 60 * 60 * 1000));
@@ -57,18 +56,19 @@
 
   const openScout = () => {
     elements.overlay.classList.remove("hidden");
+    elements.trigger.classList.add("hidden"); // Hide trigger when open
     elements.input.focus();
   };
 
   const closeScout = () => {
     elements.overlay.classList.add("hidden");
+    elements.trigger.classList.remove("hidden"); // Show trigger when closed
     closeDetailDrawer();
   };
 
   const openDetailDrawer = (product) => {
     if (!elements.drawer || !elements.drawerContent) return;
     
-    // Update navigation button states
     const idx = parseInt(product.index);
     const totalItems = document.querySelectorAll('.scout-item').length;
     
@@ -78,6 +78,10 @@
     const drawerImg = (product.image_url || '').trim()
       ? `<img src="${(product.image_url || '').startsWith('//') ? 'https:' + product.image_url : product.image_url}" alt="${(product.title || '').replace(/"/g, '')}" class="scout-drawer-main-img">`
       : '<div class="scout-drawer-img-placeholder"><span aria-hidden="true">📦</span></div>';
+
+    // FIX: use variant_id for Add to Cart — fallback to numeric product ID only if variant_id missing
+    const addToCartId = product.variant_id || product.storefront_id.split('/').pop();
+
     elements.drawerContent.innerHTML = `
       <div class="scout-drawer-hero">
         <div class="scout-drawer-img-container">
@@ -92,7 +96,7 @@
         </div>
         <div class="scout-drawer-pitch-label">AI Analysis</div>
         <div class="scout-drawer-explanation">${product.explanation ? formatExplanation(product.explanation) : '<div class="scout-drawer-explanation-shimmer"></div>'}</div>
-        <button class="scout-drawer-action" onclick="window.scout.quickAdd('${product.storefront_id.split('/').pop()}', this)">Add to Cart</button>
+        <button class="scout-drawer-action" onclick="window.scout.quickAdd('${addToCartId}', this)">Add to Cart</button>
       </div>
     `;
     elements.drawer.classList.remove("hidden");
@@ -105,7 +109,6 @@
     const nextItem = document.querySelector(`.scout-item[data-index="${nextIdx}"]`);
     
     if (nextItem) {
-      // Add a subtle fade-out/in effect
       elements.drawerContent.style.opacity = '0';
       setTimeout(() => {
         openDetailDrawer({
@@ -117,7 +120,8 @@
           score: nextItem.getAttribute('data-score'),
           scorePercent: nextItem.getAttribute('data-score-percent'),
           scoreLabel: nextItem.getAttribute('data-score-label'),
-          storefront_id: nextItem.getAttribute('data-id')
+          storefront_id: nextItem.getAttribute('data-id'),
+          variant_id: nextItem.getAttribute('data-variant-id') // FIX: pass variant_id
         });
         elements.drawerContent.style.opacity = '1';
       }, 150);
@@ -128,40 +132,30 @@
     elements.drawer?.classList.add("hidden");
   };
 
-  // 1. Mode-based Initialization
   if (displayMode === "floating") {
     elements.trigger?.addEventListener("click", openScout);
   } else if (displayMode === "hijack") {
-    // Intercept native search bars
     const findNativeSearch = () => {
       const searchInputs = document.querySelectorAll('input[name="q"], input[type="search"], .search__input');
       searchInputs.forEach(input => {
-        // We don't want to break their bar, just offer Scout
         input.addEventListener("focus", () => {
-          // Future: could show a small "Search with Scout" tooltip here
           console.log("Scout: Native search focused. Ready to scout.");
         });
-        
-        // Optional: Open Scout when they start typing in native bar
         input.addEventListener("input", (e) => {
           if (e.target.value.length > 0 && elements.overlay.classList.contains("hidden")) {
             elements.input.value = e.target.value;
             openScout();
             performSearch(e.target.value);
-            // Clear native bar to avoid double search
             e.target.value = "";
           }
         });
       });
     };
     findNativeSearch();
-    // Re-check for dynamically loaded search bars (common in AJAX carts/drawers)
     setTimeout(findNativeSearch, 2000);
   }
 
-  // 2. Universal Keyboard Shortcut (/)
   document.addEventListener("keydown", (e) => {
-    // Only trigger if not already typing in an input
     if (e.key === "/" && !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
       e.preventDefault();
       openScout();
@@ -174,7 +168,6 @@
   elements.drawerNext?.addEventListener("click", () => goToProduct(1));
   elements.drawerPrev?.addEventListener("click", () => goToProduct(-1));
 
-  // 3. Search Logic
   let searchTimeout;
   elements.input?.addEventListener("input", (e) => {
     clearTimeout(searchTimeout);
@@ -188,22 +181,16 @@
 
   async function fetchProductDetails(storefrontIds) {
     if (storefrontIds.length === 0) return [];
-
-    // Single batched request: /products.json?ids=123,456,789 avoids limit=1 truncation
     const numericIds = storefrontIds.map(gid => gid.split('/').pop());
     const idsParam = numericIds.join(',');
-
     try {
       const res = await fetch(`/products.json?ids=${idsParam}&limit=250`);
       const data = await res.json();
       const rawProducts = data.products || [];
-
-      // Map back to original order by storefront_id
       return storefrontIds.map(gid => {
         const numericId = gid.split('/').pop();
         const p = rawProducts.find(prod => String(prod.id) === String(numericId));
         if (!p) return { storefront_id: gid, handle: '', title: 'Product', price: '', image_url: '', variant_id: '' };
-
         const variant = p.variants?.[0];
         const priceNum = variant ? parseFloat(variant.price) : 0;
         const currencySymbol = (window.Shopify?.currency?.active === 'EUR') ? '€' : '$';
@@ -236,8 +223,6 @@
     
     const grid = document.getElementById("scout-grid-main");
     const reasoningContainer = document.getElementById("scout-reasoning");
-
-    // 10-second timeout safeguard
     const controller = new AbortController();
     const timeout = setTimeout(() => {
       controller.abort();
@@ -277,10 +262,8 @@
         const { value, done } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
-        
         const lines = buffer.split('\n');
-        buffer = lines.pop(); // keep incomplete line
-
+        buffer = lines.pop();
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
           try {
@@ -292,13 +275,12 @@
         }
       }
     } catch (err) {
-      if (err.name === 'AbortError') return; // timeout already handled
+      if (err.name === 'AbortError') return;
       clearTimeout(timeout);
       console.error("Scout: Search error:", err);
       grid.innerHTML = `<div class="scout-empty" style="grid-column: 1 / -1;"><p>Something went wrong: ${err.message}</p></div>`;
     } finally {
       clearTimeout(timeout);
-      // Hide reasoning pulsing once done
       if (reasoningContainer && !reasoningContainer.classList.contains('scout-reasoning-ready')) {
         reasoningContainer.classList.add('hidden');
       }
@@ -317,15 +299,12 @@
         return;
       }
 
-      // Avoid overwriting with fewer results if we already rendered more (server may send multiple events)
       const currentCount = grid.querySelectorAll('.scout-item').length;
       if (currentCount > 0 && results.length < currentCount) return;
 
-      // Hide "Scouting..." label
       const searchingLabel = elements.results.querySelector(".scout-searching");
       if (searchingLabel) searchingLabel.classList.add("hidden");
 
-      // Relative scaling: top result = 100%, others proportional to max score
       const maxScore = Math.max(...results.map(r => r.score || 0), 1e-9);
       const toPercent = (s) => Math.round(((s || 0) / maxScore) * 100);
       const toLabel = (s) => {
@@ -337,7 +316,6 @@
         return 'Loose Match';
       };
 
-      // Render skeletons immediately while we fetch product details
       grid.innerHTML = results.map((p, index) => `
         <div class="scout-item scout-loading"
              data-storefront-id="${p.storefront_id}"
@@ -351,6 +329,7 @@
              data-price=""
              data-image=""
              data-explanation=""
+             data-variant-id=""
              data-id="${p.storefront_id}">
           <div class="scout-img-wrapper scout-skeleton"></div>
           <div class="scout-info">
@@ -374,14 +353,11 @@
         </div>
       `).join('');
 
-      // Hydrate cards with product details in the background
       const storefrontIds = results.map(p => p.storefront_id);
       const products = await fetchProductDetails(storefrontIds);
 
-      // Skip if a new search replaced the grid (user typed again, etc.)
       if (!document.body.contains(grid)) return;
 
-      // Match by storefront_id to ensure correct card gets correct product (order-preserving)
       products.forEach((product, index) => {
         const card = grid.querySelector(`.scout-item[data-storefront-id="${product.storefront_id}"]`);
         if (!card) return;
@@ -389,8 +365,8 @@
         card.setAttribute('data-title', product.title || '');
         card.setAttribute('data-price', product.price || '');
         card.setAttribute('data-image', product.image_url || '');
+        card.setAttribute('data-variant-id', product.variant_id || ''); // FIX: store variant_id
 
-        // Update the visual elements - image or placeholder
         const imgWrapper = card.querySelector('.scout-img-wrapper');
         if (imgWrapper) {
           imgWrapper.classList.remove('scout-skeleton');
@@ -431,13 +407,12 @@
           priceEl.innerText = product.price || '';
         }
 
-        // Set the onclick for the quick-add using real variant id
+        // FIX: use variant_id for the compact quick-add button
         const quickAdd = card.querySelector('.scout-quick-add-compact');
         if (quickAdd && product.variant_id) {
           quickAdd.setAttribute('onclick', `window.scout.quickAdd('${product.variant_id}', this)`);
         }
         
-        // Update the store link for the product anchor
         const link = card.querySelector('a.scout-link');
         if (link && product.handle) {
           link.href = `/products/${product.handle}`;
@@ -448,7 +423,6 @@
       if (event.index !== undefined) {
         updateProductExplanation(event.index, event.explanation ?? '');
       }
-
     } else if (event.type === 'empty') {
       grid.innerHTML = '<div class="scout-empty" style="grid-column: 1 / -1;"><p>No products found for this query.</p></div>';
     }
@@ -462,17 +436,11 @@
     const text = (explanation && String(explanation).trim()) ? explanation : '';
     item.setAttribute('data-explanation', text);
 
-    // Add visual readiness states when we have content
     if (text) {
       item.classList.add('has-explanation');
       item.classList.add('shimmer-flash');
-    
-    // Remove the flash class after animation completes (0.8s) so it can re-trigger if needed
-      setTimeout(() => {
-        item.classList.remove('shimmer-flash');
-      }, 800);
+      setTimeout(() => { item.classList.remove('shimmer-flash'); }, 800);
 
-      // Update card preview: remove shimmer, show content + Read more
       const previewEl = item.querySelector('.scout-item-explanation-preview');
       if (previewEl) {
         const hook = text.split('\n')[0] || '';
@@ -484,7 +452,6 @@
       if (readMore) readMore.classList.add('visible');
     }
 
-    // Update drawer if it's currently showing this product
     if (elements.drawer && !elements.drawer.classList.contains('hidden')) {
       const currentIdx = elements.drawer.getAttribute('data-current-index');
       if (currentIdx === String(index)) {
@@ -498,8 +465,6 @@
 
   function formatExplanation(text) {
     if (!text) return '';
-    // Convert plain-text bullet format to HTML
-    // Text format: "Hook sentence\n• [Feature]: [Benefit]\n• ...\nCloser sentence"
     return text
       .split('\n')
       .map(line => {
@@ -513,24 +478,21 @@
         return line ? `<p>${line}</p>` : '';
       })
       .join('')
-      .replace(/<\/li><li>/g, '</li><li>') // Clean up adjacent bullets
+      .replace(/<\/li><li>/g, '</li><li>')
       .replace(/<li>/, '<ul class="scout-explainer-bullets"><li>')
       .replace(/(<\/li>)(?!<li>)/, '$1</ul>');
   }
 
-  // Tracking Logic
   window.scout = {
     trackClick: async (event) => {
       const item = event.target.closest('.scout-item');
       if (!item) return;
-
       const data = {
         search_id: item.getAttribute('data-search-id'),
         shop_url: shopUrl,
         product_id: item.getAttribute('data-id'),
         position_clicked: parseInt(item.getAttribute('data-position'))
       };
-
       try {
         await fetch(`${API_BASE}/track/click`, {
           method: "POST",
@@ -566,18 +528,15 @@
           }, 2000);
         }
         
-        // Notify cart tracking
         const item = document.querySelector(`[data-id*="${variantId}"]`)?.closest('.scout-item');
         if (item) {
           const title = item.querySelector('.scout-item-title').innerText;
           const priceText = item.querySelector('.scout-item-price').innerText;
           const price = parseFloat(priceText.replace(/[^0-9.]/g, '')) || 0;
-          
           window.scout.addToLocalCart(variantId, title, price);
           window.scout.trackCart(item.getAttribute('data-id'), item.getAttribute('data-search-id'));
         }
 
-        // Trigger native Shopify cart update event
         document.dispatchEvent(new CustomEvent('cart:updated'));
         alert("Product added to cart!");
       } catch (err) {
@@ -588,7 +547,6 @@
     trackCart: async (productId, searchId) => {
       const sid = searchId || getCookie(LAST_SEARCH_COOKIE);
       if (!sid) return;
-
       try {
         await fetch(`${API_BASE}/track/cart`, {
           method: "POST",
@@ -618,15 +576,12 @@
       bar.id = "scout-selection-bar";
       elements.overlay.querySelector(".scout-modal").appendChild(bar);
     }
-
     if (scoutCart.totalCount === 0) {
       bar.classList.add("hidden");
       return;
     }
-
     bar.classList.remove("hidden");
     const currencySymbol = (window.Shopify && window.Shopify.currency && window.Shopify.currency.active) === 'EUR' ? '€' : '$';
-    
     bar.innerHTML = `
       <div class="scout-selection-info">
         <span class="scout-selection-count">🎁 ${scoutCart.totalCount} items picked</span>
@@ -639,7 +594,6 @@
     `;
   }
 
-  // Listen for native cart events
   const originalFetch = window.fetch;
   window.fetch = function() {
     return originalFetch.apply(this, arguments).then(async (response) => {
@@ -692,14 +646,13 @@
       score: item.getAttribute('data-score'),
       scorePercent: item.getAttribute('data-score-percent'),
       scoreLabel: item.getAttribute('data-score-label'),
-      storefront_id: item.getAttribute('data-id')
+      storefront_id: item.getAttribute('data-id'),
+      variant_id: item.getAttribute('data-variant-id') // FIX: pass variant_id
     });
   }
 
   window.onclick = (event) => {
     if (event.target == elements.overlay) closeScout();
-    
-    // Detail Drawer trigger (info icon or Read more)
     const detailTrigger = event.target.closest('.scout-detail-trigger, .scout-read-more');
     if (detailTrigger) {
       const item = detailTrigger.closest('.scout-item');

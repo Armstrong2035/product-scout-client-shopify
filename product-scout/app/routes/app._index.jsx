@@ -40,7 +40,9 @@ export const loader = async ({ request }) => {
     overview: { total_searches: 0, cart_rate_percent: 0, checkout_rate_percent: 0 },
     trending: [],
     missed_opportunities: [],
-    top_products: []
+    top_products: [],
+    last_indexed_at: null,
+    product_count: null
   };
   let recentSearches = [];
   let rawLogs = { data: [], meta: { count: 0 } };
@@ -105,7 +107,9 @@ export const loader = async ({ request }) => {
     shop, 
     analytics: dashboardData, 
     feed: recentSearches,
-    logs: rawLogs
+    logs: rawLogs,
+    lastIndexedAt: dashboardData.last_indexed_at || null,
+    productCount: dashboardData.product_count || null
   };
 };
 
@@ -243,7 +247,7 @@ const ScoutLogo = () => (
 );
 
 export default function Index() {
-  const { shop, analytics, feed, logs } = useLoaderData();
+  const { shop, analytics, feed, logs, lastIndexedAt, productCount } = useLoaderData();
   const shopify = useAppBridge();
   const fetcher = useFetcher();
   
@@ -573,7 +577,9 @@ export default function Index() {
                <h3 style={{marginBottom: "16px"}}>Engine Status</h3>
                <div style={{display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px"}}>
                   <div className="scout-badge-green"><span style={{fontSize: "10px"}}>●</span> Engine Online</div>
-                  <span className="text-dim">Latest index: 15 mins ago</span>
+                  <span className="text-dim">
+                    {lastIndexedAt ? `Last synced: ${timeAgo(lastIndexedAt)}` : "Last sync: –"}
+                  </span>
                </div>
                <button className="scout-btn-secondary" onClick={handleReindex} disabled={isReindexing}>
                  {isReindexing ? "Syncing..." : "Force Catalog Sync"}
@@ -582,13 +588,13 @@ export default function Index() {
 
             <div className="scout-card">
                <div style={{display: "flex", justifyContent: "space-between", alignItems: "flex-end"}}>
-                 <h3 style={{marginBottom: "0"}}>Search Credits</h3>
-                 <span className="text-dim">1,248 / 2,000</span>
+                 <h3 style={{marginBottom: "0"}}>Indexed Products</h3>
+                 <span className="text-dim">available in AI search</span>
                </div>
-               <div className="scout-progress-bg">
-                 <div className="scout-progress-fill"></div>
+               <div className="text-xl" style={{marginTop: "12px"}}>
+                 {productCount !== null ? productCount.toLocaleString() : analytics?.overview?.total_searches > 0 ? "–" : "–"}
                </div>
-               <p className="text-dim" style={{marginTop: "16px"}}>You have used 62% of your monthly AI search allowance.</p>
+               <p className="text-dim" style={{marginTop: "12px", fontSize: "13px"}}>Total products currently indexed in your AI vector store.</p>
             </div>
           </div>
         </>
@@ -702,17 +708,17 @@ export default function Index() {
              <div className="scout-card" style={{borderTop: "3px solid var(--deep-violet)"}}>
                 <span className="text-dim">Total AI Searches</span>
                 <div className="text-xl">{mockMetrics.totalSearches}</div>
-                <div style={{marginTop: "12px"}}><span className="scout-badge-green">↑ 12%</span></div>
+                <p className="text-dim" style={{marginTop: "8px", fontSize: "13px"}}>Live data from Scout analytics</p>
              </div>
              <div className="scout-card" style={{borderTop: "3px solid var(--violet)"}}>
                 <span className="text-dim">Add-to-Cart Rate</span>
                 <div className="text-xl">{mockMetrics.addToCartRate}</div>
-                <div style={{marginTop: "12px"}}><span className="scout-badge-green">↑ 2.4%</span></div>
+                <p className="text-dim" style={{marginTop: "8px", fontSize: "13px"}}>Live data from Scout analytics</p>
              </div>
              <div className="scout-card" style={{borderTop: "3px solid var(--amber)"}}>
                 <span className="text-dim">Checkout Rate</span>
                 <div className="text-xl">{mockMetrics.checkoutRate}</div>
-                <div style={{marginTop: "12px"}}><span className="scout-badge-amber">↓ 0.8%</span></div>
+                <p className="text-dim" style={{marginTop: "8px", fontSize: "13px"}}>Searches leading to checkout</p>
              </div>
           </div>
 

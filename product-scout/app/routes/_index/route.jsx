@@ -17,6 +17,14 @@ export default function Index() {
 
   return (
     <div className="scout-landing">
+      {/* Google Analytics */}
+      <script async src="https://www.googletagmanager.com/gtag/js?id=G-5QMLQ8GESY" />
+      <script dangerouslySetInnerHTML={{__html: `
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-5QMLQ8GESY');
+      `}} />
       <style dangerouslySetInnerHTML={{__html: `
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Syne:wght@400..800&display=swap');
         
@@ -263,7 +271,7 @@ export default function Index() {
             <div id="install" className="auth-card">
               <div className="auth-card-content">
                 <h3>Get Beta Access</h3>
-                <p>Install free. Test it on your catalog. No credit card. No deadline. Activate when you're ready.</p>
+                <p>Install free. Test it on your catalog. $0 monthly during beta. Activate when you're ready.</p>
               </div>
               
               {showForm ? (
@@ -383,60 +391,28 @@ export default function Index() {
         <section className="section" id="pricing">
           <div className="section-header">
             <h2>Pricing</h2>
-            <p>Simple, transparent pricing to help you grow. Free to join during Beta.</p>
+            <p>Product Scout is currently in Public Beta. All features are completely free to use during this period.</p>
           </div>
           
-          <div className="pricing-grid">
-            <div className="pricing-card">
-              <div className="price-badge">FREE FOR NOW</div>
-              <h4>Starter</h4>
-              <div className="price">$29<span>/mo</span></div>
-              <ul>
-                <li>Semantic Search Engine</li>
-                <li>Up to 500 products indexed</li>
-                <li>1,000 AI searches/mo</li>
-                <li>Basic Analytics Feed</li>
+          <div className="pricing-grid" style={{gridTemplateColumns: '1fr', maxWidth: '600px', margin: '0 auto'}}>
+            <div className="pricing-card featured" style={{textAlign: 'center', alignItems: 'center'}}>
+              <div className="price-badge">BETA ACCESS</div>
+              <h4 style={{color: 'var(--violet)'}}>Full Access Pass</h4>
+              <div className="price">$0<span>/mo</span></div>
+              <ul style={{textAlign: 'left', display: 'inline-block', margin: '0 auto 32px'}}>
+                <li>Unlimited Semantic Indexing</li>
+                <li>Full AI Search Overlay</li>
+                <li>Match Scores & Explanations</li>
+                <li>Advanced Analytics Dashboard</li>
+                <li>Priority Beta Support</li>
               </ul>
-              <a href="#install" className="btn-outline">Join Beta</a>
-            </div>
-            
-            <div className="pricing-card featured">
-              <div className="price-badge">POPULAR</div>
-              <h4>Growth</h4>
-              <div className="price">$49<span>/mo</span></div>
-              <ul>
-                <li>Everything in Starter</li>
-                <li>Up to 2,500 products indexed</li>
-                <li>5,000 AI searches/mo</li>
-                <li>Conversion Attribution</li>
-              </ul>
-              <a href="#install" className="btn-primary" style={{width: 'auto'}}>Get Beta Access</a>
-            </div>
-            
-            <div className="pricing-card">
-              <h4>Pro</h4>
-              <div className="price">$99<span>/mo</span></div>
-              <ul>
-                <li>Everything in Growth</li>
-                <li>Up to 10,000 products indexed</li>
-                <li>15,000 AI searches/mo</li>
-                <li>Custom Branding</li>
-              </ul>
-              <a href="#install" className="btn-outline">Join Beta</a>
-            </div>
-
-            <div className="pricing-card">
-              <h4>Scale</h4>
-              <div className="price">$199<span>/mo</span></div>
-              <ul>
-                <li>Everything in Pro</li>
-                <li>Unlimited indexing</li>
-                <li>50,000 AI searches/mo</li>
-                <li>Priority Support</li>
-              </ul>
-              <a href="#install" className="btn-outline">Join Beta</a>
+              <a href="#install" className="btn-primary" style={{width: '100%', maxWidth: '300px'}}>Get Free Beta Access</a>
             </div>
           </div>
+          
+          <p style={{textAlign: 'center', color: 'var(--gray)', marginTop: '40px', fontSize: '15px'}}>
+            * Early adopters will receive a permanent discount when we transition to paid plans.
+          </p>
         </section>
 
         {/* Footer CTA */}
@@ -448,7 +424,22 @@ export default function Index() {
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
           </a>
         </section>
-        
+
+        {/* Footer */}
+        <footer style={{padding: '40px 0', borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: '80px', textAlign: 'center'}}>
+          <div className="logo" style={{ color: 'var(--violet)', justifyContent: 'center', marginBottom: '24px', fontSize: '18px' }}>
+            <svg width="28" height="28" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M42 88.5C24.6 85.3 12 70.1 12 52C12 28.8 30.8 10 54 10C77.2 10 96 28.8 96 52C96 70.1 83.4 85.3 66 88.5" stroke="currentColor" strokeWidth="15" fill="none" />
+              <circle cx="54" cy="52" r="10" fill="currentColor" />
+            </svg>
+            <span style={{ color: '#fff', marginLeft: '-4px' }}>SCOUT</span>
+          </div>
+          <p style={{color: 'var(--gray)', fontSize: '14px', marginBottom: '16px'}}>© 2026 Product Scout. AI-powered search for modern commerce.</p>
+          <div style={{display: 'flex', justifyContent: 'center', gap: '24px'}}>
+            <a href="/privacy" style={{color: 'var(--violet)', fontSize: '14px', fontWeight: '500'}}>Privacy Policy</a>
+            <a href="mailto:support@productscout.shop" style={{color: 'var(--gray)', fontSize: '14px'}}>Support</a>
+          </div>
+        </footer>
       </div>
     </div>
   );

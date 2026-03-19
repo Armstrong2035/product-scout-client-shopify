@@ -161,6 +161,9 @@
   overflow-y: auto;
   padding: 16px;
   min-height: 240px;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Premium Glassmorphic Scrollbar */
@@ -221,7 +224,7 @@
   padding: 12px;
   border-radius: 16px;
   text-decoration: none !important;
-  color: #fff;
+  color: var(--scout-text);
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   background: rgba(255, 255, 255, 0.35); /* Brightened from 0.2 */
   backdrop-filter: blur(12px);
@@ -232,7 +235,6 @@
   justify-content: flex-start;
   overflow: hidden;
   position: relative;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); /* Ensure text pops against the glass */
 }
 
 .scout-item:hover {
@@ -250,12 +252,12 @@
 
 .scout-item.has-explanation .scout-info-icon {
   animation: pulse-icon 2s infinite;
-  color: #fff;
+  color: var(--scout-accent);
 }
 
 @keyframes pulse-icon {
   0% { transform: scale(1); opacity: 0.8; }
-  50% { transform: scale(1.15); opacity: 1; text-shadow: 0 0 8px rgba(255, 255, 255, 0.8); }
+  50% { transform: scale(1.15); opacity: 1; text-shadow: 0 0 8px rgba(106, 53, 255, 0.4); }
   100% { transform: scale(1); opacity: 0.8; }
 }
 
@@ -325,7 +327,7 @@
   overflow: hidden;
 }
 
-.scout-item-price { font-size: 14px; font-weight: 700; color: #ffffff; }
+.scout-item-price { font-size: 14px; font-weight: 700; color: var(--scout-text); }
 
 .scout-why-recommend {
   margin-top: 4px;
@@ -339,14 +341,14 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #fff;
+  color: var(--scout-secondary-text);
   opacity: 0.85;
 }
 
 .scout-read-more {
   font-size: 11px;
   font-weight: 600;
-  color: #fff;
+  color: var(--scout-accent);
   background: none;
   border: none;
   padding: 0;
@@ -365,13 +367,13 @@
 }
 
 .scout-read-more:hover {
-  color: #fff;
+  color: var(--scout-accent);
 }
 
 .scout-item-explanation-preview {
   font-size: 11px;
   line-height: 1.35;
-  color: #fff;
+  color: var(--scout-secondary-text);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
@@ -401,9 +403,9 @@
 .scout-item-score { 
   font-size: 11px; 
   padding: 3px 10px; 
-  background: rgba(255, 255, 255, 0.15); 
-  color: #fff; 
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: var(--scout-glass-active); 
+  color: var(--scout-text); 
+  border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 6px; 
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -418,7 +420,7 @@
   margin-top: auto; /* Push to bottom */
   flex-shrink: 0;
   padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
   gap: 8px;
 }
 
@@ -431,9 +433,9 @@
 }
 
 .scout-detail-trigger {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: var(--scout-text);
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -445,8 +447,8 @@
 }
 
 .scout-detail-trigger:hover {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(0, 0, 0, 0.1);
+  border-color: rgba(0, 0, 0, 0.2);
 }
 
 .scout-info-icon {
@@ -562,6 +564,9 @@
   overflow-y: auto;
   padding: 32px;
   transition: opacity 0.2s ease-in-out;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .scout-drawer-hero {
@@ -947,6 +952,37 @@
 
 /* Responsive */
 @media (max-width: 480px) {
-  .scout-modal { width: 100%; height: 100%; max-height: 100%; border-radius: 0; border: none; }
-  .scout-overlay { padding-top: 0; }
+  .scout-modal { 
+    width: 100%; 
+    height: 100%; 
+    max-height: 100%; 
+    border-radius: 0; 
+    border: none;
+    background: rgba(255, 255, 255, 0.6); /* Significantly more transparent for better "glass" feel */
+    backdrop-filter: blur(35px); /* Stronger blur for premium frosted effect */
+    -webkit-backdrop-filter: blur(35px);
+  }
+  
+  .scout-overlay { 
+    padding-top: 0; 
+    background: rgba(0, 0, 0, 0.1); /* Very light overlay */
+  }
+
+  /* Improved Exit Widget for Mobile */
+  .scout-close-btn {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--scout-accent);
+    padding: 10px 16px;
+    background: rgba(106, 53, 255, 0.05);
+    border-radius: 8px;
+  }
+  
+  /* Make the X look like a "Cancel" or "Close" text button on mobile if it's too small */
+  .scout-close-btn::before {
+    content: "Close";
+    font-size: 13px;
+    margin-right: 4px;
+  }
 }
